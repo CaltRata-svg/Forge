@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Forge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#0b0b0d;--card:#16171b;--line:#26272d;--tx:#f2f2f4;--mu:#8b8d97;--ac:#c6ff3d;--ac2:#0b0b0d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,system-ui,"Segoe UI",sans-serif;padding-bottom:84px}
+.w{max-width:480px;margin:0 auto;padding:20px 16px}
+h1{font-size:26px;margin:4px 0 4px}h2{font-size:18px;margin:22px 0 10px}p{color:var(--mu);margin:4px 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:10px}
+.row{display:flex;gap:10px;align-items:center}.sp{justify-content:space-between}.g{display:grid;gap:10px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+label{display:block;font-size:13px;color:var(--mu);margin-bottom:4px}
+input,select{width:100%;background:#0f1013;border:1px solid var(--line);color:var(--tx);border-radius:12px;padding:12px;font-size:16px}
+button{background:var(--ac);color:var(--ac2);border:0;border-radius:12px;padding:13px 16px;font-size:16px;font-weight:700;width:100%}
+button.s{background:var(--line);color:var(--tx)}button.sm{width:auto;padding:8px 12px;font-size:14px}
+.opt{border:1.5px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;background:var(--card);font-size:13px;color:var(--mu)}
+.opt.on{border-color:var(--ac);color:var(--tx)}.opt svg{display:block;margin:0 auto 6px}
+.day{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--line);color:var(--mu);font-size:13px;background:var(--card)}
+.day.on{background:var(--ac);color:var(--ac2);border-color:var(--ac);font-weight:700}
+.tag{font-size:11px;font-weight:700;background:var(--ac);color:var(--ac2);border-radius:20px;padding:3px 8px;white-space:nowrap}
+.nav{position:fixed;left:0;right:0;bottom:0;background:#101114ee;border-top:1px solid var(--line);display:flex;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));backdrop-filter:blur(10px)}
+.nav button{background:none;color:var(--mu);font-size:12px;padding:8px 2px;font-weight:600}.nav button.on{color:var(--ac)}
+.chk{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center}.done .chk{background:var(--ac);border-color:var(--ac);color:var(--ac2)}
+.done .t{text-decoration:line-through;color:var(--mu)}.th{width:44px;height:44px;border-radius:10px;object-fit:cover}
+.big{font-size:40px;font-weight:800;color:var(--ac)}.mu{color:var(--mu);font-size:13px}
+.rk{width:26px;color:var(--mu);font-weight:700}.me{border-color:var(--ac)}
+.desc{display:none;color:var(--mu);font-size:14px;margin-top:8px}.open .desc{display:block}
+</style></head><body><div class="w" id="app"></div>
+<div class="nav" id="nav"></div>
+<script>
+const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const EX=[
+["Brisk walk / incline walk","cardio","Walk at a pace that raises your breathing for 30 minutes. Gentle on joints, great for fat loss.","Low impact cardio"],
+["Cycling or stationary bike","cardio","Steady 30 minutes at moderate effort. Builds endurance without pounding your knees.","Low impact cardio"],
+["Jump rope","cardio","5 rounds of 1 minute on, 30 seconds rest. High calorie burn and coordination.","High intensity"],
+["Bodyweight squats","strength","3 sets of 15. Feet shoulder width, sit back and down, chest up, drive through heels.","Legs"],
+["Push-ups","strength","3 sets to near failure. Keep a straight line from head to heels. Drop to knees if needed.","Chest and arms"],
+["Dumbbell rows","strength","3 sets of 10 per arm. Flat back, pull the weight to your hip, squeeze the shoulder blade.","Back"],
+["Deadlifts","strength","4 sets of 6 with a challenging weight. Hinge at the hips, neutral spine, bar close to your legs.","Full body"],
+["Overhead press","strength","3 sets of 8. Brace your core and press straight overhead without leaning back.","Shoulders"],
+["Plank","core","3 holds of 30 to 60 seconds. Elbows under shoulders, body in one straight line.","Core"],
+["Lunges","strength","3 sets of 10 per leg. Long step, back knee toward the floor, front heel down.","Legs"],
+["HIIT circuit","cardio","20 seconds hard, 40 seconds easy for 10 rounds: burpees, mountain climbers, high knees.","High intensity"],
+["Yoga / mobility flow","mobility","20 minutes of slow stretching. Improves recovery and range of motion.","Recovery"]];
+const FAT=[["Lean","~10%"],["Athletic","~15%"],["Average","~22%"],["Soft","~30%"],["Heavy","~38%"]];
+const today=()=>new Date().toISOString().slice(0,10);
+const dow=()=>(new Date().getDay()+6)%7;
+let S={step:0,prof:{name:"",age:28,sex:"m",h:175,w:75},fat:2,freq:3,days:[0,2,4],rem:{on:true,time:"07:00",text:"Today is workout day. Let's go."},routine:[],weights:[],done:{},pts:0,notified:""};
+try{const r=localStorage.getItem("forge");if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+function save(){try{localStorage.setItem("forge",JSON.stringify(S))}catch(e){}syncPts()}
+let tab="today",db=null,uid=null,board=[];
+function bmi(){return S.prof.w/Math.pow(S.prof.h/100,2)}
+function recommended(e){const b=bmi(),f=S.fat;
+ if(f>=3||b>=27)return e[1]=="cardio"&&e[3]!="High intensity"||e[0]=="Bodyweight squats"||e[1]=="mobility"||e[0]=="Plank";
+ if(f<=1&&b<22)return e[1]=="strength";
+ return e[1]=="strength"||e[0]=="HIIT circuit"||e[0]=="Plank"}
+function figure(i){const w=14+i*5;return `<svg width="46" height="70" viewBox="0 0 46 70"><circle cx="23" cy="9" r="7" fill="#8b8d97"/><rect x="${23-w/2-4}" y="18" width="${w+8}" height="28" rx="${6+i*2}" fill="#8b8d97"/><rect x="${23-w/2}" y="44" width="${w/2-1}" height="24" rx="4" fill="#8b8d97"/><rect x="23" y="44" width="${w/2-1}" height="24" rx="4" fill="#8b8d97"/></svg>`}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+const $=id=>document.getElementById(id);
+function val(id){return $(id).value}
+
+function render(){
+ const a=$("app"),n=$("nav");
+ if(S.step<4){n.style.display="none";return onboard(a)}
+ n.style.display="flex";
+ n.innerHTML=[["today","Today"],["routine","Routine"],["prog","Progress"],["ranks","Ranks"],["me","Settings"]].map(t=>`<button class="${tab==t[0]?"on":""}" onclick="tab='${t[0]}';render()">${t[1]}</button>`).join("");
+ ({today:vToday,routine:vRoutine,prog:vProg,ranks:vRanks,me:vMe})[tab](a);
+}
+function onboard(a){
+ const p=S.prof;
+ if(S.step==0)a.innerHTML=`<h1>Welcome to Forge</h1><p>Tell us about you so we can recommend the right workouts.</p>
+ <div class="card g"><div><label>Display name (shown on the leaderboard)</label><input id="nm" value="${esc(p.name)}" maxlength="20"></div>
+ <div class="g g2"><div><label>Age</label><input id="ag" type="number" value="${p.age}"></div><div><label>Sex</label><select id="sx"><option value="m" ${p.sex=="m"?"selected":""}>Male</option><option value="f" ${p.sex=="f"?"selected":""}>Female</option></select></div>
+ <div><label>Height (cm)</label><input id="ht" type="number" value="${p.h}"></div><div><label>Weight (kg)</label><input id="wt" type="number" value="${p.w}"></div></div></div>
+ <button onclick="s0()">Continue</button>`;
+ if(S.step==1)a.innerHTML=`<h1>Pick your body type</h1><p>Choose the figure that looks closest to your current body fat.</p>
+ <div class="g g3" style="grid-template-columns:repeat(3,1fr)">${FAT.map((f,i)=>`<div class="opt ${S.fat==i?"on":""}" onclick="S.fat=${i};render()">${figure(i)}<b style="color:var(--tx)">${f[0]}</b><br>${f[1]}</div>`).join("")}</div>
+ <div style="height:16px"></div><button onclick="S.step=2;render()">Continue</button>`;
+ if(S.step==2)a.innerHTML=`<h1>Your schedule</h1><p>How many days a week, and which ones?</p>
+ <div class="card"><label>Workouts per week</label><div class="row" style="flex-wrap:wrap">${[1,2,3,4,5,6,7].map(n=>`<div class="day ${S.freq==n?"on":""}" onclick="S.freq=${n};S.days=S.days.slice(0,${n});render()">${n}</div>`).join("")}</div></div>
+ <div class="card"><label>Pick ${S.freq} day${S.freq>1?"s":""} (${S.days.length} chosen)</label><div class="row" style="flex-wrap:wrap">${DAYS.map((d,i)=>`<div class="day ${S.days.includes(i)?"on":""}" onclick="tgDay(${i})">${d}</div>`).join("")}</div></div>
+ <button onclick="if(S.days.length!=S.freq){alert('Pick exactly ${S.freq} day(s).');return}S.step=3;render()">Continue</button>`;
+ if(S.step==3)a.innerHTML=`<h1>Workout reminder</h1><p>We'll send a notification on your workout days.</p>
+ <div class="card g"><div><label>Reminder time</label><input id="rt" type="time" value="${S.rem.time}"></div><div><label>Your custom message</label><input id="rx" value="${esc(S.rem.text)}" maxlength="80"></div></div>
+ <button onclick="s3()">Allow notifications and finish</button><div style="height:8px"></div><button class="s" onclick="S.rem.on=false;S.step=4;tab='routine';save();render()">Skip reminders</button>`;
+}
+function s0(){S.prof={name:val("nm").trim()||"Athlete",age:+val("ag"),sex:val("sx"),h:+val("ht"),w:+val("wt")};
+ if(!S.weights.length)S.weights.push({d:today(),w:S.prof.w});S.step=1;save();render()}
+function tgDay(i){const k=S.days.indexOf(i);if(k>=0)S.days.splice(k,1);else if(S.days.length<S.freq)S.days.push(i);render()}
+async function s3(){S.rem.time=val("rt");S.rem.text=val("rx")||S.rem.text;S.rem.on=true;
+ try{if("Notification" in window)await Notification.requestPermission()}catch(e){}
+ S.step=4;tab="routine";save();render()}
+
+function vToday(a){
+ const t=today(),isDay=S.days.includes(dow()),d=S.done[t]||{};
+ const list=S.routine.map(ex).filter(Boolean);
+ const dn=list.filter(e=>d[e[0]]).length;
+ a.innerHTML=`<h1>Hi ${esc(S.prof.name)}</h1><p>${isDay?"Today is a workout day.":"Rest day. Next workout: "+nextDay()}</p>
+ <div class="card row sp"><div><div class="big">${S.pts}</div><div class="mu">total points</div></div><div class="mu" style="text-align:right">${isDay?dn+" / "+list.length+" tasks done":""}</div></div>
+ ${!list.length?`<div class="card">Choose your exercises first.<div style="height:10px"></div><button onclick="tab='routine';render()">Build routine</button></div>`:""}
+ ${isDay?list.map(e=>`<div class="card row ${d[e[0]]?"done":""}">
+  <div class="chk">${d[e[0]]?"✓":""}</div><div style="flex:1"><div class="t"><b>${esc(e[0])}</b></div><div class="mu">${e[3]} · +10 pts</div></div>
+  ${d[e[0]]?`<img class="th" src="${d[e[0]]}">`:`<button class="sm" onclick="snap('${e[0].replace(/'/g,"")}')">Photo</button>`}</div>`).join(""):""}
+ ${isDay&&list.length&&dn==list.length?`<div class="card" style="border-color:var(--ac)"><b>All done!</b><p style="margin:0">Bonus +20 points earned today.</p></div>`:""}
+ ${isDay&&list.length?`<p class="mu">Complete each task by taking a photo as proof. A widget is not possible from a web page, see the note in the Settings tab.</p>`:""}
+ <input id="cam" type="file" accept="image/*" capture="environment" style="display:none">`;
+}
+function nextDay(){for(let k=1;k<=7;k++){const i=(dow()+k)%7;if(S.days.includes(i))return DAYS[i]}return "-"}
+let pend=null;
+function snap(name){pend=name;const c=$("cam");c.value="";c.onchange=()=>{const f=c.files[0];if(!f)return;
+ const im=new Image();im.onload=()=>{const cv=document.createElement("canvas"),sc=160/Math.max(im.width,im.height);cv.width=im.width*sc;cv.height=im.height*sc;
+  cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);complete(pend,cv.toDataURL("image/jpeg",.6))};im.src=URL.createObjectURL(f)};c.click()}
+function complete(name,img){const t=today();S.done[t]=S.done[t]||{};if(S.done[t][name])return;S.done[t][name]=img;S.pts+=10;
+ const all=S.routine.map(ex).filter(Boolean).every(e=>S.done[t][e[0]]);if(all&&!S.done[t]["_b"]){S.done[t]["_b"]="1";S.pts+=20}
+ save();render()}
+
+function vRoutine(a){
+ a.innerHTML=`<h1>Your routine</h1><p>Choose your exercises. Recommended ones match your body type.</p>
+ <div class="card g"><b>Add your own exercise</b><div><label>Name</label><input id="cn" maxlength="40" placeholder="e.g. Kettlebell swings"></div><div><label>Description (optional)</label><input id="cd" maxlength="160" placeholder="Sets, reps, tips"></div><button onclick="addEx()">Add to my routine</button></div>
+ ${allEx().map((e,i)=>{if(!e)return "";const on=S.routine.includes(i);return `<div class="card" id="ex${i}" onclick="this.classList.toggle('open')"><div class="row sp"><div style="flex:1"><b>${esc(e[0])}</b> ${e[1]=="custom"?'<span class="tag" style="background:var(--line);color:var(--tx)">Custom</span>':""} ${recommended(e)?'<span class="tag">Recommended</span>':""}<div class="mu">${e[3]}</div></div>
+ ${i>=EX.length?`<button class="sm s" onclick="event.stopPropagation();delEx(${i})">✕</button>`:""}<button class="sm ${on?"":"s"}" onclick="event.stopPropagation();pick(${i})">${on?"Added":"Add"}</button></div><div class="desc">${esc(e[2])}</div></div>`}).join("")}`;
+}
+function allEx(){return EX.concat(S.custom||[])}
+function ex(i){return allEx()[i]}
+function addEx(){const n=val("cn").replace(/['"<>&\\]/g,"").trim();if(!n){alert("Give your exercise a name.");return}
+ S.custom=S.custom||[];S.custom.push([n,"custom",val("cd").trim()||"Your own exercise.","Custom"]);S.routine.push(EX.length+S.custom.length-1);save();render()}
+function delEx(i){S.custom[i-EX.length]=null;const k=S.routine.indexOf(i);if(k>=0)S.routine.splice(k,1);save();render()}
+function pick(i){const k=S.routine.indexOf(i);if(k>=0)S.routine.splice(k,1);else S.routine.push(i);save();const sc=scrollY;render();scrollTo(0,sc)}
+
+function vProg(a){
+ const ws=S.weights,last=ws[ws.length-1],wk=ws.length&&(Date.now()-new Date(last.d))/864e5>=7||!ws.length;
+ a.innerHTML=`<h1>Progress</h1><p>Log your weight once a week.</p>
+ <div class="card"><div class="row sp"><div><div class="big">${last?last.w:"-"}<span class="mu"> kg</span></div><div class="mu">BMI ${bmi().toFixed(1)} · ${FAT[S.fat][0]}</div></div></div>${chart(ws)}</div>
+ <div class="card g"><label>${wk?"This week's weight (kg)":"Logged this week. You can update it:"}</label><input id="nw" type="number" step="0.1" value="${last?last.w:""}"><button onclick="logW()">Save weight</button></div>
+ ${ws.slice().reverse().map(x=>`<div class="card row sp"><span>${x.d}</span><b>${x.w} kg</b></div>`).join("")}`;
+}
+function chart(ws){if(ws.length<2)return `<p class="mu" style="margin:10px 0 0">Log another week to see your trend.</p>`;
+ const v=ws.map(x=>x.w),mn=Math.min(...v)-1,mx=Math.max(...v)+1,W=420,H=110;
+ const pts=v.map((y,i)=>[i*(W-20)/(v.length-1)+10,H-10-(y-mn)/(mx-mn)*(H-20)]);
+ return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;margin-top:10px"><polyline fill="none" stroke="#c6ff3d" stroke-width="3" points="${pts.map(p=>p.join(",")).join(" ")}"/>${pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#c6ff3d"/>`).join("")}</svg>`}
+function logW(){const w=+val("nw");if(!w)return;const l=S.weights[S.weights.length-1];
+ if(l&&(Date.now()-new Date(l.d))/864e5<7)l.w=w;else S.weights.push({d:today(),w});S.prof.w=w;save();render()}
+
+function vRanks(a){
+ a.innerHTML=`<h1>Leaderboard</h1><p>Everyone in the app, ranked by points.</p><div id="lb"><div class="card mu">Loading...</div></div>`;drawLB()}
+function drawLB(){const el=$("lb");if(!el)return;
+ if(!db){el.innerHTML=`<div class="card mu">Sign in to claude.ai to see the global leaderboard.</div>`;return}
+ if(!board.length){el.innerHTML=`<div class="card mu">No scores yet. Complete a task to be first.</div>`;return}
+ el.innerHTML="";board.forEach((r,i)=>{const d=document.createElement("div");d.className="card row sp"+(r.id==uid?" me":"");
+  d.innerHTML=`<div class="row"><span class="rk">${i+1}</span><b></b></div><b style="color:var(--ac)"></b>`;
+  d.querySelector("b").textContent=r.name;d.lastChild.textContent=r.points+" pts";el.appendChild(d)})}
+async function syncPts(){if(!db||!uid)return;try{await db.doc("leaderboard/"+uid).set({name:S.prof.name,points:S.pts,t:Date.now()})}catch(e){}}
+
+function vMe(a){
+ const p=S.prof,notif="Notification" in window?Notification.permission:"unsupported";
+ a.innerHTML=`<h1>Settings</h1><p>${esc(p.name)} · ${p.age} yrs · ${p.h} cm · ${S.days.map(i=>DAYS[i]).join(", ")}</p>
+ <div class="card g"><b>Reminder</b><div class="row sp"><span>Notifications</span><button class="sm ${S.rem.on?"":"s"}" onclick="S.rem.on=!S.rem.on;save();render()">${S.rem.on?"On":"Off"}</button></div>
+ <div><label>Time</label><input id="rt" type="time" value="${S.rem.time}"></div><div><label>Message</label><input id="rx" value="${esc(S.rem.text)}"></div>
+ <button onclick="S.rem.time=val('rt');S.rem.text=val('rx');Notification.requestPermission&&Notification.requestPermission().then(()=>{save();render()})">Save reminder</button>
+ <div class="mu">Permission: ${notif}. <a href="#" style="color:var(--ac)" onclick="testN();return false">Send test</a></div></div>
+ <div class="card"><b>Good to know</b><p class="mu" style="margin:6px 0 0">Reminders appear as normal notifications while this page is open or running in the background in your browser. For reminders that fire when the app is fully closed, and a real iOS home screen widget, this needs to become a native iPhone app.</p></div>
+ <button class="s" onclick="S.step=0;render()">Edit my profile and schedule</button>`}
+function testN(){try{new Notification("Forge",{body:S.rem.text})}catch(e){alert("Notifications aren't available here.")}}
+function tick(){if(!S.rem.on||S.step<4||!("Notification" in window)||Notification.permission!="granted")return;
+ const n=new Date(),hm=n.toTimeString().slice(0,5);
+ if(S.days.includes(dow())&&hm>=S.rem.time&&S.notified!=today()){S.notified=today();save();try{new Notification("Workout day",{body:S.rem.text})}catch(e){}}}
+setInterval(tick,30000);tick();render();
+
+(async()=>{try{const [d,u]=await Promise.all([claude.use("db"),claude.use("user")]);if(!d||!u)return;db=d;uid=await u.id();
+ await syncPts();
+ db.collection("leaderboard").orderBy("points","desc").limit(50).onSnapshot(s=>{board=[];s.docs.forEach(x=>board.push(Object.assign({id:x.id},x.data())));drawLB()});
+ if(tab=="ranks")drawLB()}catch(e){}})();
+</script></body></html>
